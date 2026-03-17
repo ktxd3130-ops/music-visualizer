@@ -268,24 +268,39 @@ export class Visualizer {
       let pz = p.baseZ;
 
       // ─── ORGANIC AUDIO REACTIVE DISTORTIONS ───
-      // Lips and jaw movement driven by vocals using smooth mathematical falloff
+      // Lips and face movement simulating skin tension and musculature
       
       const centerX = 0.50; // Horizontal center of the face
       const distX = Math.abs(p.nx - centerX);
       
-      // Horizontal falloff (hinges at the corners of the mouth at ~0.06 distance)
-      const hFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.06, 2));
-      
-      if (hFalloff > 0) {
-        // Lower Lip & Jaw (hinges at lip edge ny=0.67, tapers down to chin ny=0.85)
+      // 1. Primary Mouth (Lips separating)
+      const mouthHFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.06, 2));
+      if (mouthHFalloff > 0) {
         if (p.ny >= 0.67 && p.ny < 0.85) {
           const vFalloff = Math.max(0, 1.0 - Math.pow((p.ny - 0.67) / 0.18, 1.5));
-          py += mouthOpen * hFalloff * vFalloff * 1.5; // Boost slightly for visibility
-        } 
-        // Upper Lip (hinges at lip edge ny=0.67, tapers up to philtrum ny=0.64)
-        else if (p.ny >= 0.64 && p.ny < 0.67) {
+          py += mouthOpen * mouthHFalloff * vFalloff * 1.5; 
+        } else if (p.ny >= 0.64 && p.ny < 0.67) {
           const vFalloff = Math.max(0, 1.0 - Math.pow((0.67 - p.ny) / 0.03, 1.5));
-          py -= lipLift * hFalloff * vFalloff * 1.5;
+          py -= lipLift * mouthHFalloff * vFalloff * 1.5;
+        }
+      }
+
+      // 2. Secondary Face / Cheek / Jaw movement
+      // When the jaw drops to sing, it pulls the skin of the lower cheeks down and slightly inwards.
+      const cheekHFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.25, 2)); // Wide enough to cover cheeks
+      
+      if (cheekHFalloff > 0 && p.ny > 0.55) {
+        // Hinge point is the cheekbones (ny ~ 0.55). Tension increases down towards the chin (ny ~ 0.85)
+        const vFalloff = Math.min(1.0, (p.ny - 0.55) / 0.45); // Linear stretch down the face
+        
+        // Jaw dropping pulls everything down
+        py += mouthOpen * cheekHFalloff * vFalloff * 0.7;
+        
+        // Singing pulls the cheeks slightly inwards, thinning the face
+        if (p.nx < centerX) {
+          px += mouthOpen * cheekHFalloff * vFalloff * 0.08;
+        } else if (p.nx > centerX) {
+          px -= mouthOpen * cheekHFalloff * vFalloff * 0.08;
         }
       }
 
