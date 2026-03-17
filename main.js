@@ -7,6 +7,8 @@ class App {
   constructor() {
     this.audioSourceSelect = document.getElementById('audio-source');
     this.modeSelect = document.getElementById('visualizer-mode');
+    this.faceSelectGroup = document.getElementById('face-select-group');
+    this.faceSelect = document.getElementById('face-select');
     this.startBtn = document.getElementById('start-btn');
     this.syncBtn = document.getElementById('sync-lrc-btn');
     this.canvas = document.getElementById('visualizer-canvas');
@@ -35,13 +37,27 @@ class App {
       const mode = e.target.value;
       this.visualizer.setMode(mode);
       
-      // Show sync button only on face mode
+      // Show sync button and face select only on face mode
       if (mode === 'face') {
         this.syncBtn.style.display = 'inline-block';
+        this.faceSelectGroup.style.display = 'block';
+        
+        // Ensure starting face is loaded
+        if (this.visualizer.loadFaceImage) {
+           this.visualizer.loadFaceImage(this.faceSelect.value);
+        }
       } else {
         this.syncBtn.style.display = 'none';
+        this.faceSelectGroup.style.display = 'none';
+        
         this.lyricManager.stopSync();
         this.syncBtn.classList.remove('active');
+      }
+    });
+
+    this.faceSelect.addEventListener('change', (e) => {
+      if (this.visualizer.loadFaceImage) {
+        this.visualizer.loadFaceImage(e.target.value);
       }
     });
 

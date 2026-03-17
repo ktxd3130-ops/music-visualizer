@@ -22,10 +22,10 @@ export class Visualizer {
   // ═══════════════════════════════════════════════
   // HIGH-FIDELITY IMAGE-BASED PARTICLE SYSTEM
   // ═══════════════════════════════════════════════
-  loadFaceImage() {
+  loadFaceImage(imageUrl = '/hologram_face.png') {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
-    img.src = '/hologram_face.png'; // High resolution beautiful holographic face
+    img.src = imageUrl; 
 
     img.onload = () => {
       // Determine resolution of the particle grid
@@ -58,16 +58,20 @@ export class Visualizer {
           const nx = x / cols;
           const ny = y / rows;
           
-          // The face should bulge out where it's bright
-          // Let's create a base sphere shape and add the image brightness as relief
           const dx = (nx - 0.5) * 2;
           const dy = (ny - 0.5) * 2;
-          const distFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+          // ─── PURE ANATOMICAL DEPTH MAPPING ───
+          // Eliminate the spherical "balloon" math. Use the image's inherent luminance structure for true 3D topology
+          let baseZ = 0;
           
-          // Base Z curves aggressively back at the edges to form a full head volume instead of a flat mask
-          let baseZ = Math.cos(distFromCenter * Math.PI * 0.5) * 1.2; // Drastically increased from 0.5
-          // Deep brightness relief so the nose, brow, and lips press forward realistically
-          baseZ += brightness * 0.8; // Drastically increased from 0.3
+          if (brightness < 0.1) {
+            // The black background and deep recesses (eye sockets) drop completely away into the void
+            baseZ = -2.0;
+          } else {
+            // Bone and skin structure. Darker areas curve backwards, bright highlights (nose/teeth/forehead) push strongly forward
+            baseZ = (brightness - 0.45) * 2.5;
+          }
           
           // Region detection for mouth animation
           // The mouth typically sits roughly centered horizontally, in the lower third
