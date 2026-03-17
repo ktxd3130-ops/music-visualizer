@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Audio Visualizer Core</title>
+    <!-- Add Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <!-- Background Elements -->
+    <div class="background-grid"></div>
+    <div class="ambient-glow"></div>
+
+    <div id="app">
+      <!-- Top Bar: Settings & Device Selection -->
+      <header class="glass-panel top-bar">
+        <div class="logo">
+          <div class="logo-icon"></div>
+          <h1>WebVisualizer</h1>
+        </div>
+        
+        <div class="controls">
+          <div class="control-group">
+            <label for="audio-source">Audio Source:</label>
+            <select id="audio-source" class="glass-select">
+              <option value="">Select source...</option>
+            </select>
+          </div>
+          
+          <div class="control-group">
+            <label for="visualizer-mode">Mode:</label>
+            <select id="visualizer-mode" class="glass-select">
+              <option value="bars">Frequency Bars</option>
+              <option value="waveform">Waveform</option>
+              <option value="circular">Radial Spectrum</option>
+              <option value="face">Digital AI Face</option>
+            </select>
+          </div>
+          <button id="sync-lrc-btn" class="secondary-btn" style="display: none;">Sync Lyrics</button>
+          <button id="start-btn" class="primary-btn">Start Audio</button>
+        </div>
+      </header>
+      
+      <!-- Main Visualizer Container -->
+      <main class="canvas-container">
+        <canvas id="visualizer-canvas"></canvas>
+      </main>
+
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
