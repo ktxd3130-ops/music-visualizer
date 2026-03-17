@@ -92,6 +92,7 @@ export class Visualizer {
             baseZ: baseZ,
             r, g, b,              // Store exact pixel color
             alpha: brightness,    // Bright spots are more opaque
+            nx, ny,               // Store normalized coordinates for organic distortion math
             region,
             phase: Math.random() * Math.PI * 2,
           });
@@ -266,14 +267,26 @@ export class Visualizer {
       let py = p.baseY;
       let pz = p.baseZ;
 
-      // ─── AUDIO REACTIVE DISTORTIONS ───
-      // Lips and jaw movement driven solely by vocals (sub-bands)
-      if (p.region === 'lowerLip') {
-        py += mouthOpen;           
-      } else if (p.region === 'jaw') {
-        py += mouthOpen * 0.8; // Jaw drops with lower lip
-      } else if (p.region === 'upperLip') {
-        py -= lipLift; // Upper lip lifts slightly on higher vocals
+      // ─── ORGANIC AUDIO REACTIVE DISTORTIONS ───
+      // Lips and jaw movement driven by vocals using smooth mathematical falloff
+      
+      const centerX = 0.50; // Horizontal center of the face
+      const distX = Math.abs(p.nx - centerX);
+      
+      // Horizontal falloff (hinges at the corners of the mouth at ~0.06 distance)
+      const hFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.06, 2));
+      
+      if (hFalloff > 0) {
+        // Lower Lip & Jaw (hinges at lip edge ny=0.67, tapers down to chin ny=0.85)
+        if (p.ny >= 0.67 && p.ny < 0.85) {
+          const vFalloff = Math.max(0, 1.0 - Math.pow((p.ny - 0.67) / 0.18, 1.5));
+          py += mouthOpen * hFalloff * vFalloff * 1.5; // Boost slightly for visibility
+        } 
+        // Upper Lip (hinges at lip edge ny=0.67, tapers up to philtrum ny=0.64)
+        else if (p.ny >= 0.64 && p.ny < 0.67) {
+          const vFalloff = Math.max(0, 1.0 - Math.pow((0.67 - p.ny) / 0.03, 1.5));
+          py -= lipLift * hFalloff * vFalloff * 1.5;
+        }
       }
 
       // Subtle breathing on whole face
