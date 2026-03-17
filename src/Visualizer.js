@@ -73,12 +73,12 @@ export class Visualizer {
           // The mouth typically sits roughly centered horizontally, in the lower third
           let region = 'face';
           
-          if (nx > 0.38 && nx < 0.62) {
-            if (ny > 0.66 && ny < 0.73) {
+          if (nx > 0.43 && nx < 0.57) {
+            if (ny > 0.665 && ny < 0.695) {
               region = 'upperLip';
-            } else if (ny >= 0.73 && ny < 0.78) {
+            } else if (ny >= 0.695 && ny < 0.725) {
               region = 'lowerLip';
-            } else if (ny >= 0.78 && ny < 0.9) {
+            } else if (ny >= 0.725 && ny < 0.85) {
               region = 'jaw';
             }
           }
