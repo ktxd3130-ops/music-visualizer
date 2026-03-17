@@ -64,10 +64,10 @@ export class Visualizer {
           const dy = (ny - 0.5) * 2;
           const distFromCenter = Math.sqrt(dx * dx + dy * dy);
           
-          // Base Z curves back at the edges
-          let baseZ = Math.cos(distFromCenter * Math.PI * 0.5) * 0.5;
-          // Add brightness relief so features (nose, lips, brows) pop out
-          baseZ += brightness * 0.3;
+          // Base Z curves aggressively back at the edges to form a full head volume instead of a flat mask
+          let baseZ = Math.cos(distFromCenter * Math.PI * 0.5) * 1.2; // Drastically increased from 0.5
+          // Deep brightness relief so the nose, brow, and lips press forward realistically
+          baseZ += brightness * 0.8; // Drastically increased from 0.3
           
           // Region detection for mouth animation
           // The mouth typically sits roughly centered horizontally, in the lower third
@@ -267,36 +267,39 @@ export class Visualizer {
       let py = p.baseY;
       let pz = p.baseZ;
 
-      // ─── ORGANIC AUDIO REACTIVE DISTORTIONS ───
-      // Lips and face movement simulating skin tension and musculature
+      // ─── 3D BIOMECHANICAL DISTORTIONS ───
+      // Lips and face movement simulating full 3D jaw rotation and skin tension
       
       const centerX = 0.50; // Horizontal center of the face
       const distX = Math.abs(p.nx - centerX);
       
-      // 1. Primary Mouth (Lips separating)
+      // 1. Primary Mouth (Lips separating and pushing in 3D)
       const mouthHFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.06, 2));
       if (mouthHFalloff > 0) {
         if (p.ny >= 0.67 && p.ny < 0.85) {
           const vFalloff = Math.max(0, 1.0 - Math.pow((p.ny - 0.67) / 0.18, 1.5));
           py += mouthOpen * mouthHFalloff * vFalloff * 1.5; 
+          pz -= mouthOpen * mouthHFalloff * vFalloff * 0.6; // Jaw drops AND swings backward
         } else if (p.ny >= 0.64 && p.ny < 0.67) {
           const vFalloff = Math.max(0, 1.0 - Math.pow((0.67 - p.ny) / 0.03, 1.5));
           py -= lipLift * mouthHFalloff * vFalloff * 1.5;
+          pz += lipLift * mouthHFalloff * vFalloff * 0.3; // Upper lip flares slightly forward
         }
       }
 
       // 2. Secondary Face / Cheek / Jaw movement
-      // When the jaw drops to sing, it pulls the skin of the lower cheeks down and slightly inwards.
+      // When the jaw drops to sing, it pulls the skin of the lower cheeks down, backwards, and slightly inwards.
       const cheekHFalloff = Math.max(0, 1.0 - Math.pow(distX / 0.25, 2)); // Wide enough to cover cheeks
       
       if (cheekHFalloff > 0 && p.ny > 0.55) {
-        // Hinge point is the cheekbones (ny ~ 0.55). Tension increases down towards the chin (ny ~ 0.85)
+        // Hinge point is the cheekbones and TMJ joint (ny ~ 0.55).
         const vFalloff = Math.min(1.0, (p.ny - 0.55) / 0.45); // Linear stretch down the face
         
-        // Jaw dropping pulls everything down
+        // Jaw dropping pulls everything down AND swings it backwards into the neck cavity
         py += mouthOpen * cheekHFalloff * vFalloff * 0.7;
+        pz -= mouthOpen * cheekHFalloff * vFalloff * 0.4; // 3D volumetric jaw rotation
         
-        // Singing pulls the cheeks slightly inwards, thinning the face
+        // Singing pulls the cheeks slightly inwards, thinning the face volume
         if (p.nx < centerX) {
           px += mouthOpen * cheekHFalloff * vFalloff * 0.08;
         } else if (p.nx > centerX) {
