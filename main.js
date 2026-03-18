@@ -2,6 +2,7 @@ import './style.css';
 import { AudioEngine } from './src/AudioEngine.js';
 import { Visualizer } from './src/Visualizer.js';
 import { LyricManager } from './src/LyricManager.js';
+import { ThreeEngine } from './src/ThreeEngine.js';
 
 class App {
   constructor() {
@@ -14,11 +15,16 @@ class App {
     this.canvas = document.getElementById('visualizer-canvas');
     this.ctx = this.canvas.getContext('2d');
     
+    this.threeCanvas = document.getElementById('three-canvas');
+    
     this.isRunning = false;
     
     this.audioEngine = new AudioEngine();
     this.lyricManager = new LyricManager();
     this.visualizer = new Visualizer(this.canvas, this.audioEngine, this.lyricManager);
+    
+    this.threeEngine = new ThreeEngine(this.threeCanvas);
+    this.threeEngine.setAudioEngine(this.audioEngine);
     
     this.init();
   }
@@ -42,13 +48,21 @@ class App {
         this.syncBtn.style.display = 'inline-block';
         this.faceSelectGroup.style.display = 'block';
         
-        // Ensure starting face is loaded
+        // Swap to Three.js Canvas
+        this.canvas.style.display = 'none';
+        this.threeCanvas.style.display = 'block';
+        
+        // Ensure starting face is loaded for standard visualizer (legacy)
         if (this.visualizer.loadFaceImage) {
            this.visualizer.loadFaceImage(this.faceSelect.value);
         }
       } else {
         this.syncBtn.style.display = 'none';
         this.faceSelectGroup.style.display = 'none';
+        
+        // Swap to 2D Canvas
+        this.threeCanvas.style.display = 'none';
+        this.canvas.style.display = 'block';
         
         this.lyricManager.stopSync();
         this.syncBtn.classList.remove('active');
@@ -72,6 +86,12 @@ class App {
     const container = this.canvas.parentElement;
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
+    
+    if (this.threeEngine) {
+      this.threeCanvas.width = container.clientWidth;
+      this.threeCanvas.height = container.clientHeight;
+      this.threeEngine.onWindowResize();
+    }
     
     if (!this.isRunning) {
       this.drawInitialState();
@@ -126,8 +146,12 @@ class App {
         this.startBtn.classList.add('active');
         this.isRunning = true;
         
-        this.visualizer.setMode(this.modeSelect.value);
-        this.visualizer.start();
+        if (this.modeSelect.value === 'face') {
+          this.threeEngine.start();
+        } else {
+          this.visualizer.setMode(this.modeSelect.value);
+          this.visualizer.start();
+        }
         
         // Auto-start sync if in face mode and lyrics loaded
         if (this.modeSelect.value === 'face' && this.syncBtn.classList.contains('active')) {
@@ -142,6 +166,7 @@ class App {
       this.isRunning = false;
       
       this.visualizer.stop();
+      this.threeEngine.stop();
       this.lyricManager.stopSync();
       await this.audioEngine.stop();
       this.drawInitialState();
