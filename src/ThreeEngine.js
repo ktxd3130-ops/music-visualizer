@@ -94,7 +94,23 @@ export class ThreeEngine {
             const box = new THREE.Box3().setFromObject(child);
             headCenter = new THREE.Vector3();
             box.getCenter(headCenter);
-            console.log('Head mesh bounds:', box.min, box.max, 'center:', headCenter);
+          }
+
+          // ── ORGANIC LINE FIGURE: Hide clothing/accessories, wireframe the face ──
+          if (n.includes('hair') || n.includes('outfit') || n.includes('glasses') || n.includes('headtop') || n.includes('body')) {
+            child.visible = false; // Strip away everything except the pure face anatomy
+          } else {
+            // Glowing wireframe material — organic line aesthetic
+            child.material = new THREE.MeshStandardMaterial({
+              color: 0x88ddff,
+              emissive: 0x0066cc,
+              emissiveIntensity: 0.6,
+              wireframe: true,
+              transparent: true,
+              opacity: 0.85,
+              roughness: 0.4,
+              metalness: 0.3,
+            });
           }
         }
       });
