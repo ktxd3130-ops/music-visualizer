@@ -113,13 +113,13 @@ export class ThreeEngine {
         this.modelBaseY = model.position.y;
         
         // Camera looks at origin, which is now the head center
-        this.camera.position.set(0, 0, 0.45); // Close portrait ~45cm away
+        this.camera.position.set(0, 0.02, 0.75); // Head+shoulders portrait framing
         this.camera.lookAt(0, 0, 0);
       } else {
         // Fallback: just center roughly
         model.position.set(0, -1.7, 0);
         this.modelBaseY = -1.7;
-        this.camera.position.set(0, 0, 0.5);
+        this.camera.position.set(0, 0, 0.8);
         this.camera.lookAt(0, 0, 0);
       }
 
@@ -187,7 +187,7 @@ export class ThreeEngine {
       }
 
       const vb = this.audioEngine.getVocalBands();
-      const GATE = 0.05;
+      const GATE = 0.12; // Higher gate = mouth stays shut during quiet passages
       const gatedTotal = vb.total < GATE ? 0 : vb.total;
       const gatedLow = gatedTotal === 0 ? 0 : vb.low;
       const gatedMid = gatedTotal === 0 ? 0 : vb.mid;
@@ -212,35 +212,35 @@ export class ThreeEngine {
     // ═══ MORPH TARGET LIP SYNC ═══
     if (this.headMesh) {
       // Jaw drop: driven by low vocal formants (fundamental frequency)
-      this.setMorph('jawOpen', this.sLow * 1.8);
+      this.setMorph('jawOpen', this.sLow * 0.8);
 
       // Mouth open: driven by total vocal energy
-      this.setMorph('mouthOpen', this.sTotal * 1.5);
+      this.setMorph('mouthOpen', this.sTotal * 0.7);
 
       // Mouth funnel (OOH shape): driven by mid frequencies
-      this.setMorph('mouthFunnel', this.sMid * 0.8);
+      this.setMorph('mouthFunnel', this.sMid * 0.4);
 
       // Mouth pucker: driven by high frequencies (sibilants)
-      this.setMorph('mouthPucker', this.sHigh * 0.6);
+      this.setMorph('mouthPucker', this.sHigh * 0.3);
 
       // Mouth stretch (wide AAH): driven by low energy
-      this.setMorph('mouthStretchLeft', this.sLow * 0.5);
-      this.setMorph('mouthStretchRight', this.sLow * 0.5);
+      this.setMorph('mouthStretchLeft', this.sLow * 0.2);
+      this.setMorph('mouthStretchRight', this.sLow * 0.2);
 
       // Lips together / apart
-      this.setMorph('mouthClose', Math.max(0, 0.3 - this.sTotal * 2));
+      this.setMorph('mouthClose', Math.max(0, 0.15 - this.sTotal));
 
       // Mouth smile during mid vocal
-      this.setMorph('mouthSmileLeft', this.sMid * 0.4);
-      this.setMorph('mouthSmileRight', this.sMid * 0.4);
+      this.setMorph('mouthSmileLeft', this.sMid * 0.2);
+      this.setMorph('mouthSmileRight', this.sMid * 0.2);
 
       // Upper lip raise during high vocal
-      this.setMorph('mouthUpperUpLeft', this.sHigh * 0.4);
-      this.setMorph('mouthUpperUpRight', this.sHigh * 0.4);
+      this.setMorph('mouthUpperUpLeft', this.sHigh * 0.2);
+      this.setMorph('mouthUpperUpRight', this.sHigh * 0.2);
 
       // Lower lip depression during open
-      this.setMorph('mouthLowerDownLeft', this.sLow * 0.6);
-      this.setMorph('mouthLowerDownRight', this.sLow * 0.6);
+      this.setMorph('mouthLowerDownLeft', this.sLow * 0.3);
+      this.setMorph('mouthLowerDownRight', this.sLow * 0.3);
 
       // Subtle brow movement when singing intensely
       this.setMorph('browInnerUp', this.sTotal * 0.4);
