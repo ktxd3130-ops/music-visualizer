@@ -62,9 +62,9 @@ export interface SpeechRecognitionCallbacks {
 
 // Voice Activity Detection config
 const VAD_CONFIG = {
-  silenceThreshold: 0.01, // RMS below this = silence
-  silenceTimeout: 1800, // ms of silence before we consider speech done
-  minSpeechDuration: 300, // ms — ignore very short sounds
+  silenceThreshold: 0.008, // RMS below this = silence (lowered to avoid cutting off quiet speech)
+  silenceTimeout: 3000, // ms of silence before we consider speech done (3s gives natural pauses)
+  minSpeechDuration: 500, // ms — ignore very short sounds (background noise)
 };
 
 export class SpeechRecognitionEngine {
@@ -111,6 +111,7 @@ export class SpeechRecognitionEngine {
 
     this.recognition.onstart = () => {
       this.isListening = true;
+      console.log("STT: recognition started");
     };
 
     this.recognition.onresult = (event: ISpeechRecognitionEvent) => {
@@ -127,8 +128,10 @@ export class SpeechRecognitionEngine {
       }
 
       if (finalTranscript) {
+        console.log("STT final:", finalTranscript.trim());
         this.callbacks?.onResult(finalTranscript.trim(), true);
       } else if (interimTranscript) {
+        console.log("STT interim:", interimTranscript.trim());
         this.callbacks?.onResult(interimTranscript.trim(), false);
       }
     };
@@ -266,6 +269,7 @@ export class SpeechRecognitionEngine {
           ) {
             const speechDuration = this.silenceStart - this.speechStart;
             if (speechDuration > VAD_CONFIG.minSpeechDuration) {
+              console.log("STT: silence timeout after", speechDuration, "ms of speech");
               this.callbacks?.onSilenceTimeout();
             }
             this.isSpeaking = false;
