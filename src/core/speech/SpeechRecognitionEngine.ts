@@ -72,6 +72,11 @@ export class SpeechRecognitionEngine {
   private isListening = false;
   private callbacks: SpeechRecognitionCallbacks | null = null;
 
+  // Retry backoff for network errors
+  private retryCount = 0;
+  private maxRetries = 5;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
   // VAD state
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -129,19 +134,43 @@ export class SpeechRecognitionEngine {
     };
 
     this.recognition.onerror = (event: ISpeechRecognitionErrorEvent) => {
-      // "no-speech" and "aborted" are expected during normal operation
+      // Expected during normal operation — ignore silently
       if (event.error === "no-speech" || event.error === "aborted") return;
+
+      // Network/not-allowed errors: use backoff retry instead of spamming
+      if (event.error === "network" || event.error === "not-allowed") {
+        this.retryCount++;
+        if (this.retryCount <= this.maxRetries) {
+          console.warn(`STT ${event.error} — retry ${this.retryCount}/${this.maxRetries}`);
+        }
+        return;
+      }
+
       this.callbacks?.onError(event.error);
     };
 
     this.recognition.onend = () => {
       // Auto-restart if we're supposed to be listening
       if (this.isListening) {
-        try {
-          this.recognition?.start();
-        } catch {
-          // Already started, ignore
+        // Backoff delay: 500ms, 1s, 2s, 4s, 8s
+        const delay = Math.min(500 * Math.pow(2, this.retryCount), 8000);
+
+        if (this.retryCount > this.maxRetries) {
+          console.error("STT: max retries reached, stopping");
+          this.callbacks?.onError("Speech recognition unavailable — check your network connection");
+          this.isListening = false;
+          return;
         }
+
+        this.retryTimer = setTimeout(() => {
+          try {
+            this.recognition?.start();
+            // Reset retry count on successful restart
+            setTimeout(() => { this.retryCount = Math.max(0, this.retryCount - 1); }, 3000);
+          } catch {
+            // Already started, ignore
+          }
+        }, this.retryCount > 0 ? delay : 100);
       }
     };
 
@@ -152,6 +181,7 @@ export class SpeechRecognitionEngine {
     if (!this.recognition) return;
 
     this.isListening = true;
+    this.retryCount = 0;
     this.callbacks?.onStart();
 
     try {
@@ -166,6 +196,11 @@ export class SpeechRecognitionEngine {
 
   stopListening(): void {
     this.isListening = false;
+    this.retryCount = 0;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     this.stopVAD();
 
     try {
@@ -271,6 +306,10 @@ export class SpeechRecognitionEngine {
 
   destroy(): void {
     this.stopListening();
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     this.recognition = null;
     this.callbacks = null;
   }
