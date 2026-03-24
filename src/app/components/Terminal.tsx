@@ -77,19 +77,27 @@ export default function Terminal() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `API error: ${response.status}`);
         }
 
         const data = await response.json();
         const assistantText = data.response;
 
+        if (!assistantText) {
+          throw new Error("Empty response from Claude");
+        }
+
         addMessage({ role: "assistant", content: assistantText });
         setLastResponse(assistantText);
 
         // Speak the response
         if (ttsRef.current) {
+          console.log("Speaking response:", assistantText.substring(0, 50) + "...");
           ttsRef.current.speak(assistantText);
+        } else {
+          console.error("TTS engine not initialized");
+          setState("idle");
         }
       } catch (err) {
         console.error("Claude API error:", err);

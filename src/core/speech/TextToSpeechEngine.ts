@@ -30,9 +30,35 @@ export class TextToSpeechEngine {
   private webSpeechSimLevel = 0;
   private webSpeechSimInterval: ReturnType<typeof setInterval> | null = null;
 
+  private voicesLoaded = false;
+
   init(callbacks: TTSCallbacks, provider: TTSProvider = "web"): void {
     this.callbacks = callbacks;
     this.provider = provider;
+
+    // Pre-load voices — browsers load them asynchronously
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          this.voicesLoaded = true;
+          // Auto-select a good default voice
+          const enVoices = voices.filter((v) => v.lang.startsWith("en"));
+          const preferred = enVoices.find(
+            (v) =>
+              v.name.includes("Samantha") ||
+              v.name.includes("Daniel") ||
+              v.name.includes("Google US English") ||
+              v.name.includes("Microsoft")
+          );
+          if (preferred && !this.selectedVoice) {
+            this.selectedVoice = preferred;
+          }
+        }
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
   }
 
   async speak(text: string, apiKey?: string): Promise<void> {
@@ -119,49 +145,95 @@ export class TextToSpeechEngine {
   // ---- Web Speech API ----
 
   private speakWithWebSpeech(text: string): void {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-
-    this.utterance = new SpeechSynthesisUtterance(text);
-    this.utterance.rate = 1.0;
-    this.utterance.pitch = 1.0;
-    this.utterance.volume = 1.0;
-
-    if (this.selectedVoice) {
-      this.utterance.voice = this.selectedVoice;
-    } else {
-      // Try to find a good default voice
-      const voices = this.getAvailableVoices();
-      const preferred = voices.find(
-        (v) =>
-          v.name.includes("Samantha") ||
-          v.name.includes("Daniel") ||
-          v.name.includes("Google") ||
-          v.name.includes("Microsoft")
-      );
-      if (preferred) this.utterance.voice = preferred;
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      this.callbacks?.onError("Speech synthesis not available");
+      return;
     }
 
-    this.utterance.onstart = () => {
-      this.isSpeaking = true;
-      this.callbacks?.onStart();
-      this.startWebSpeechSimulation();
-    };
+    // Chrome bug: speechSynthesis can get stuck. Cancel any pending queue.
+    window.speechSynthesis.cancel();
 
-    this.utterance.onend = () => {
-      this.isSpeaking = false;
-      this.stopWebSpeechSimulation();
-      this.callbacks?.onEnd();
-    };
+    const createAndSpeak = () => {
+      this.utterance = new SpeechSynthesisUtterance(text);
+      this.utterance.rate = 1.0;
+      this.utterance.pitch = 1.0;
+      this.utterance.volume = 1.0;
 
-    this.utterance.onerror = (event) => {
-      this.isSpeaking = false;
-      this.stopWebSpeechSimulation();
-      if (event.error !== "canceled") {
-        this.callbacks?.onError(event.error);
+      if (this.selectedVoice) {
+        this.utterance.voice = this.selectedVoice;
+      } else {
+        const voices = this.getAvailableVoices();
+        const preferred = voices.find(
+          (v) =>
+            v.name.includes("Samantha") ||
+            v.name.includes("Daniel") ||
+            v.name.includes("Google US English") ||
+            v.name.includes("Microsoft")
+        );
+        if (preferred) this.utterance.voice = preferred;
       }
+
+      this.utterance.onstart = () => {
+        this.isSpeaking = true;
+        this.callbacks?.onStart();
+        this.startWebSpeechSimulation();
+      };
+
+      this.utterance.onend = () => {
+        this.isSpeaking = false;
+        this.stopWebSpeechSimulation();
+        this.callbacks?.onEnd();
+      };
+
+      this.utterance.onerror = (event) => {
+        this.isSpeaking = false;
+        this.stopWebSpeechSimulation();
+        if (event.error !== "canceled") {
+          console.error("TTS utterance error:", event.error);
+          this.callbacks?.onError(event.error);
+        }
+      };
+
+      window.speechSynthesis.speak(this.utterance);
+
+      // Chrome bug workaround: speech can pause after ~15s.
+      // Keep-alive by resuming periodically.
+      const keepAlive = setInterval(() => {
+        if (!this.isSpeaking) {
+          clearInterval(keepAlive);
+          return;
+        }
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }, 10000);
+
+      this.utterance.onend = () => {
+        clearInterval(keepAlive);
+        this.isSpeaking = false;
+        this.stopWebSpeechSimulation();
+        this.callbacks?.onEnd();
+      };
     };
 
-    window.speechSynthesis.speak(this.utterance);
+    // If voices aren't loaded yet, wait for them
+    if (!this.voicesLoaded && window.speechSynthesis.getVoices().length === 0) {
+      const waitForVoices = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", waitForVoices);
+        this.voicesLoaded = true;
+        createAndSpeak();
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", waitForVoices);
+      // Timeout fallback — speak without a selected voice after 1s
+      setTimeout(() => {
+        if (!this.voicesLoaded) {
+          window.speechSynthesis.removeEventListener("voiceschanged", waitForVoices);
+          this.voicesLoaded = true;
+          createAndSpeak();
+        }
+      }, 1000);
+    } else {
+      createAndSpeak();
+    }
   }
 
   // Simulate audio levels for Web Speech API (can't capture real audio)
